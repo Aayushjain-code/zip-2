@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Create a Wallet</h2>
+
+<form id="wallet-form">
+  <label for="name">Wallet Name:</label><br>
+  <input type="text" id="name" name="name"><br>
+  <label for="balance">Initial Balance:</label><br>
+  <input type="number" id="balance" name="balance" step="0.0001"><br>
+  <input type="button" value="Submit" onclick="submitForm()">
+</form>
+
+<script>
+function submitForm() {
+  var name = document.getElementById('name').value;
+  var balance = document.getElementById('balance').value;
+
+  fetch('http://localhost:3000/setup', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({name: name, balance: balance}),
+  })
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch((error) => {
+    console.error('Error:', error);
+  });
+}
+</script>
+
+</body>
+</html>
