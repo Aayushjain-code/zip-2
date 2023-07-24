@@ -2,7 +2,8 @@ const Wallet = require("../models/Wallet");
 const Transaction = require("../models/Transaction");
 
 exports.setup = async (req, res) => {
-  const wallet = new Wallet(req.body);
+  const initialBalance = req.body.balance || 0;
+  const wallet = new Wallet({ ...req.body, balance: initialBalance });
   await wallet.save();
 
   res.status(200).json(wallet);
@@ -11,7 +12,7 @@ exports.setup = async (req, res) => {
 exports.transact = async (req, res) => {
   const { amount, description } = req.body;
   const walletId = req.params.walletId;
-  console.log(amount);
+
   // Ensure amount is a number
   const floatAmount = parseFloat(amount);
   if (isNaN(floatAmount)) {
@@ -29,16 +30,24 @@ exports.transact = async (req, res) => {
   if (typeof wallet.balance !== "number") {
     return res.status(400).json({ message: "Invalid wallet balance" });
   }
-  if(floatAmount > 0){
-    wallet.balance += floatAmount;
 
+  // Check if the transaction is a debit and if the wallet has enough balance
+  if (floatAmount < 0 && wallet.balance < Math.abs(floatAmount)) {
+    return res.status(403).json({
+      message: "Insufficient balance",
+    });
+  }
+
+  // Update the wallet balance
+  wallet.balance += floatAmount;
   await wallet.save();
 
   const transaction = new Transaction({
     wallet: wallet._id,
     amount: floatAmount,
+    balance: wallet.balance,
     description,
-    type: floatAmount > 0 ? "CREDIT" : "DEBIT",
+    type: floatAmount >= 0 ? "CREDIT" : "DEBIT",
   });
 
   await transaction.save();
@@ -47,34 +56,11 @@ exports.transact = async (req, res) => {
     balance: wallet.balance,
     transactionId: transaction._id,
   });
-  } else if(wallet.balance > floatAmount * -1) {
-    wallet.balance += floatAmount;
-
-    await wallet.save();
-  
-    const transaction = new Transaction({
-      wallet: wallet._id,
-      amount: floatAmount,
-      description,
-      type: floatAmount > 0 ? "CREDIT" : "DEBIT",
-    });
-  
-    await transaction.save();
-  
-    res.status(200).json({
-      balance: wallet.balance,
-      transactionId: transaction._id,
-    });
-  } else {
-    return res.status(403).json({
-      message:"Insufficient balance "
-    })
-  }
-  
 };
 
 exports.getTransactions = async (req, res) => {
-  const transactions = await Transaction.find({ wallet: req.query.walletId }).populate("wallet", "name")
+  const transactions = await Transaction.find({ wallet: req.query.walletId })
+    .populate("wallet", "name")
     .sort("-date")
     .skip(parseInt(req.query.skip))
     .limit(parseInt(req.query.limit));
