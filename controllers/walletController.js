@@ -79,7 +79,6 @@ exports.getWallet = async (req, res) => {
 };
 // ...
 
-// Get all wallets
 exports.getAllWallets = async (req, res) => {
   const wallets = await Wallet.find();
 
